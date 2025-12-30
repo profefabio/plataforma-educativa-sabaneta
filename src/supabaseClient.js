@@ -737,4 +737,163 @@ export const suscribirseARespuestasForo = (foroId, callback) => {
   
   return subscription;
 };
+// ============================================
+// FUNCIONES PARA NOTICIAS
+// Agregar al final de supabaseClient.js
+// ============================================
+
+// ============================================
+// NOTICIAS
+// ============================================
+
+export const obtenerNoticias = async (filtros = {}) => {
+  try {
+    let query = supabase
+      .from('noticias')
+      .select(`
+        *,
+        autor:autor_id(id, nombre, email, rol)
+      `);
+    
+    if (filtros.categoria) {
+      query = query.eq('categoria', filtros.categoria);
+    }
+    
+    if (filtros.destacada !== undefined) {
+      query = query.eq('destacada', filtros.destacada);
+    }
+    
+    // Ordenar: destacadas primero, luego por fecha
+    const { data, error } = await query
+      .order('destacada', { ascending: false })
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener noticias:', error);
+    return { data: null, error };
+  }
+};
+
+export const obtenerNoticiaPorId = async (id) => {
+  try {
+    const { data, error } = await supabase
+      .from('noticias')
+      .select(`
+        *,
+        autor:autor_id(id, nombre, email, rol)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    // Incrementar contador de vistas
+    await supabase
+      .from('noticias')
+      .update({ vistas: (data.vistas || 0) + 1 })
+      .eq('id', id);
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener noticia:', error);
+    return { data: null, error };
+  }
+};
+
+export const crearNoticia = async (noticia) => {
+  try {
+    const { data, error } = await supabase
+      .from('noticias')
+      .insert([noticia])
+      .select(`
+        *,
+        autor:autor_id(id, nombre, email, rol)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al crear noticia:', error);
+    return { data: null, error };
+  }
+};
+
+export const actualizarNoticia = async (id, cambios) => {
+  try {
+    const { data, error } = await supabase
+      .from('noticias')
+      .update(cambios)
+      .eq('id', id)
+      .select(`
+        *,
+        autor:autor_id(id, nombre, email, rol)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al actualizar noticia:', error);
+    return { data: null, error };
+  }
+};
+
+export const eliminarNoticia = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('noticias')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al eliminar noticia:', error);
+    return { error };
+  }
+};
+
+export const marcarNoticiaDestacada = async (id, destacada) => {
+  try {
+    const { data, error } = await supabase
+      .from('noticias')
+      .update({ destacada })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al marcar noticia como destacada:', error);
+    return { data: null, error };
+  }
+};
+
+// ============================================
+// SUSCRIPCIONES EN TIEMPO REAL (NOTICIAS)
+// ============================================
+
+export const suscribirseANoticias = (callback) => {
+  const subscription = supabase
+    .channel('noticias-channel')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'noticias'
+      },
+      (payload) => {
+        callback(payload);
+      }
+    )
+    .subscribe();
+  
+  return subscription;
+};
+
 
