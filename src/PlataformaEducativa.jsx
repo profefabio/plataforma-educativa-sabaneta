@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Video, Link, Users, MessageCircle, Send, Upload, LogOut, Home, BookOpen, Settings, Plus, X, Check, Search, Bell, Trash2, Edit, Calendar, MessageSquare } from 'lucide-react';
 import {
@@ -1356,3 +1357,4 @@ const PlataformaEducativa = () => {
 };
 
 export default PlataformaEducativa;
+
