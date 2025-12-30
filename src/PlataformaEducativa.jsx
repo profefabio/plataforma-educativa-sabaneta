@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Video, Link, Users, MessageCircle, Send, Upload, LogOut, Home, BookOpen, Settings, Plus, X, Check, Search, Bell, Trash2, Edit } from 'lucide-react';
+import { Camera, Video, Link, Users, MessageCircle, Send, Upload, LogOut, Home, BookOpen, Settings, Plus, X, Check, Search, Bell, Trash2, Edit, Calendar, MessageSquare } from 'lucide-react';
 import {
   supabase,
   obtenerUsuarios,
@@ -13,8 +14,16 @@ import {
   obtenerMensajes,
   crearMensaje,
   suscribirseAMensajes,
-  suscribirseAContenidos
+  suscribirseAContenidos,
+  obtenerEventosCalendario,
+  obtenerForos,
+  obtenerNotificaciones,
+  suscribirseANotificaciones
 } from './supabaseClient';
+
+import CalendarioView from './CalendarioView';
+import ForosView from './ForosView';
+import NotificacionesComponent from './NotificacionesComponent';
 
 const PlataformaEducativa = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -27,6 +36,8 @@ const PlataformaEducativa = () => {
   const [notificaciones, setNotificaciones] = useState(0);
   const [loading, setLoading] = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState(null);
+  const [eventos, setEventos] = useState([]);
+  const [foros, setForos] = useState([]);
 
   // Respuestas automáticas predefinidas
   const respuestasAutomaticas = [
@@ -111,6 +122,16 @@ const PlataformaEducativa = () => {
       cargarMensajes();
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    const cargarEstadisticas = async () => {
+      const { data: eventosData } = await obtenerEventosCalendario();
+      const { data: forosData } = await obtenerForos();
+      if (eventosData) setEventos(eventosData);
+      if (forosData) setForos(forosData);
+    };
+    cargarEstadisticas();
+  }, []);
 
   const detectarRespuestaAutomatica = (mensaje) => {
     const mensajeLower = mensaje.toLowerCase();
@@ -578,54 +599,54 @@ const PlataformaEducativa = () => {
 
   // Navegación principal
   const NavBar = () => (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg">
-              <BookOpen size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-800 title-text">EduTech Sabaneta</h1>
-              <p className="text-xs text-gray-500">Profesor Fabio Ortiz • Supabase</p>
-            </div>
+  <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex justify-between items-center h-16">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg">
+            <BookOpen size={24} className="text-white" />
           </div>
-
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Bell size={20} className="text-gray-600 cursor-pointer hover:text-cyan-600 transition-colors" />
-              {notificaciones > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center pulse-animation">
-                  {notificaciones}
-                </span>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-              <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {currentUser.nombre.charAt(0)}
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-semibold text-gray-800">{currentUser.nombre}</p>
-                <p className="text-xs text-gray-500 capitalize">{currentUser.rol}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                setCurrentUser(null);
-                setActiveView('login');
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Cerrar sesión"
-            >
-              <LogOut size={20} className="text-gray-600" />
-            </button>
+          <div>
+            <h1 className="font-bold text-gray-800 title-text">EduTech Sabaneta</h1>
+            <p className="text-xs text-gray-500">Profesor Fabio Ortiz • Supabase</p>
           </div>
         </div>
+
+        <div className="flex items-center gap-4">
+          {/* Componente de Notificaciones */}
+          <NotificacionesComponent 
+            currentUser={currentUser}
+            onNotificacionClick={(url) => {
+              // Manejar navegación si es necesario
+              console.log('Navegar a:', url);
+            }}
+          />
+          
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              {currentUser.nombre.charAt(0)}
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-sm font-semibold text-gray-800">{currentUser.nombre}</p>
+              <p className="text-xs text-gray-500 capitalize">{currentUser.rol}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setCurrentUser(null);
+              setActiveView('login');
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Cerrar sesión"
+          >
+            <LogOut size={20} className="text-gray-600" />
+          </button>
+        </div>
       </div>
-    </nav>
-  );
+    </div>
+  </nav>
+);
 
   // Menú lateral
   const Sidebar = () => (
@@ -664,6 +685,26 @@ const PlataformaEducativa = () => {
               {notificaciones}
             </span>
           )}
+        </button>
+
+        <button
+          onClick={() => setActiveView('calendario')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+            activeView === 'calendario' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg' : 'hover:bg-gray-100 text-gray-700'
+          }`}
+        >
+          <Calendar size={20} />
+          <span className="font-medium">Calendario</span>
+        </button>
+
+        <button
+          onClick={() => setActiveView('foros')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+            activeView === 'foros' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg' : 'hover:bg-gray-100 text-gray-700'
+          }`}
+        >
+          <MessageSquare size={20} />
+          <span className="font-medium">Foros</span>
         </button>
 
         {currentUser.rol === 'admin' && (
@@ -759,6 +800,29 @@ const PlataformaEducativa = () => {
           ))}
         </div>
       </div>
+
+      <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl border border-green-100 card-hover">
+        <div className="flex items-center justify-between mb-4">
+          <div className="p-3 bg-green-500 rounded-xl">
+            <Calendar size={24} className="text-white" />
+          </div>
+          <span className="text-3xl font-bold text-green-600">{eventos.length}</span>
+        </div>
+        <h3 className="font-semibold text-gray-800">Eventos</h3>
+        <p className="text-sm text-gray-600">Calendario activo</p>
+      </div>
+
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 card-hover">
+        <div className="flex items-center justify-between mb-4">
+          <div className="p-3 bg-indigo-500 rounded-xl">
+            <MessageSquare size={24} className="text-white" />
+          </div>
+          <span className="text-3xl font-bold text-indigo-600">{foros.length}</span>
+        </div>
+        <h3 className="font-semibold text-gray-800">Foros</h3>
+        <p className="text-sm text-gray-600">Discusiones activas</p>
+      </div>
+
     </div>
   );
 
@@ -1280,6 +1344,8 @@ const PlataformaEducativa = () => {
             {activeView === 'home' && <HomeView />}
             {activeView === 'contenidos' && <ContenidosView />}
             {activeView === 'chat' && <ChatView />}
+            {activeView === 'calendario' && <CalendarioView currentUser={currentUser} />}
+            {activeView === 'foros' && <ForosView currentUser={currentUser} />}
             {activeView === 'subir' && <SubirView />}
             {activeView === 'usuarios' && <UsuariosView />}
           </div>
@@ -1291,3 +1357,4 @@ const PlataformaEducativa = () => {
 };
 
 export default PlataformaEducativa;
+
