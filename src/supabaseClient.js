@@ -282,3 +282,459 @@ export const suscribirseAContenidos = (callback) => {
 };
 
 export default supabase;
+
+// ============================================
+// FUNCIONES ADICIONALES PARA supabaseClient.js
+// Agrega estas funciones al archivo existente
+// ============================================
+
+// ============================================
+// CALENDARIO
+// ============================================
+
+export const obtenerEventosCalendario = async (filtros = {}) => {
+  try {
+    let query = supabase
+      .from('calendario')
+      .select('*, usuarios:usuario_id(nombre, email, rol)');
+    
+    if (filtros.grado) {
+      query = query.eq('grado', filtros.grado);
+    }
+    
+    if (filtros.tipo) {
+      query = query.eq('tipo', filtros.tipo);
+    }
+    
+    if (filtros.fecha_inicio) {
+      query = query.gte('fecha_inicio', filtros.fecha_inicio);
+    }
+    
+    if (filtros.fecha_fin) {
+      query = query.lte('fecha_inicio', filtros.fecha_fin);
+    }
+    
+    const { data, error } = await query.order('fecha_inicio', { ascending: true });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener eventos:', error);
+    return { data: null, error };
+  }
+};
+
+export const crearEvento = async (evento) => {
+  try {
+    const { data, error } = await supabase
+      .from('calendario')
+      .insert([evento])
+      .select('*, usuarios:usuario_id(nombre, email, rol)')
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al crear evento:', error);
+    return { data: null, error };
+  }
+};
+
+export const actualizarEvento = async (id, cambios) => {
+  try {
+    const { data, error } = await supabase
+      .from('calendario')
+      .update(cambios)
+      .eq('id', id)
+      .select('*, usuarios:usuario_id(nombre, email, rol)')
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al actualizar evento:', error);
+    return { data: null, error };
+  }
+};
+
+export const eliminarEvento = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('calendario')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al eliminar evento:', error);
+    return { error };
+  }
+};
+
+// ============================================
+// FOROS
+// ============================================
+
+export const obtenerForos = async (filtros = {}) => {
+  try {
+    let query = supabase
+      .from('foros')
+      .select(`
+        *,
+        usuarios:usuario_id(nombre, email, rol),
+        respuestas:foros_respuestas(count)
+      `);
+    
+    if (filtros.grado) {
+      query = query.eq('grado', filtros.grado);
+    }
+    
+    const { data, error } = await query.order('fijado', { ascending: false }).order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener foros:', error);
+    return { data: null, error };
+  }
+};
+
+export const obtenerForoPorId = async (id) => {
+  try {
+    const { data, error } = await supabase
+      .from('foros')
+      .select(`
+        *,
+        usuarios:usuario_id(nombre, email, rol)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    // Incrementar vistas
+    await supabase
+      .from('foros')
+      .update({ vistas: (data.vistas || 0) + 1 })
+      .eq('id', id);
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener foro:', error);
+    return { data: null, error };
+  }
+};
+
+export const crearForo = async (foro) => {
+  try {
+    const { data, error } = await supabase
+      .from('foros')
+      .insert([foro])
+      .select(`
+        *,
+        usuarios:usuario_id(nombre, email, rol)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al crear foro:', error);
+    return { data: null, error };
+  }
+};
+
+export const actualizarForo = async (id, cambios) => {
+  try {
+    const { data, error } = await supabase
+      .from('foros')
+      .update(cambios)
+      .eq('id', id)
+      .select(`
+        *,
+        usuarios:usuario_id(nombre, email, rol)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al actualizar foro:', error);
+    return { data: null, error };
+  }
+};
+
+export const eliminarForo = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('foros')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al eliminar foro:', error);
+    return { error };
+  }
+};
+
+// ============================================
+// RESPUESTAS DE FOROS
+// ============================================
+
+export const obtenerRespuestasForo = async (foroId) => {
+  try {
+    const { data, error } = await supabase
+      .from('foros_respuestas')
+      .select(`
+        *,
+        usuarios:usuario_id(nombre, email, rol)
+      `)
+      .eq('foro_id', foroId)
+      .order('created_at', { ascending: true });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener respuestas:', error);
+    return { data: null, error };
+  }
+};
+
+export const crearRespuestaForo = async (respuesta) => {
+  try {
+    const { data, error } = await supabase
+      .from('foros_respuestas')
+      .insert([respuesta])
+      .select(`
+        *,
+        usuarios:usuario_id(nombre, email, rol)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al crear respuesta:', error);
+    return { data: null, error };
+  }
+};
+
+export const actualizarRespuestaForo = async (id, cambios) => {
+  try {
+    const { data, error } = await supabase
+      .from('foros_respuestas')
+      .update({ ...cambios, editado: true })
+      .eq('id', id)
+      .select(`
+        *,
+        usuarios:usuario_id(nombre, email, rol)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al actualizar respuesta:', error);
+    return { data: null, error };
+  }
+};
+
+export const eliminarRespuestaForo = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('foros_respuestas')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al eliminar respuesta:', error);
+    return { error };
+  }
+};
+
+// ============================================
+// NOTIFICACIONES
+// ============================================
+
+export const obtenerNotificaciones = async (usuarioId) => {
+  try {
+    const { data, error } = await supabase
+      .from('notificaciones')
+      .select('*')
+      .eq('usuario_id', usuarioId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener notificaciones:', error);
+    return { data: null, error };
+  }
+};
+
+export const contarNotificacionesNoLeidas = async (usuarioId) => {
+  try {
+    const { count, error } = await supabase
+      .from('notificaciones')
+      .select('*', { count: 'exact', head: true })
+      .eq('usuario_id', usuarioId)
+      .eq('leido', false);
+    
+    if (error) throw error;
+    return { count, error: null };
+  } catch (error) {
+    console.error('Error al contar notificaciones:', error);
+    return { count: 0, error };
+  }
+};
+
+export const marcarNotificacionComoLeida = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('notificaciones')
+      .update({ leido: true })
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al marcar notificación:', error);
+    return { error };
+  }
+};
+
+export const marcarTodasNotificacionesLeidas = async (usuarioId) => {
+  try {
+    const { error } = await supabase
+      .from('notificaciones')
+      .update({ leido: true })
+      .eq('usuario_id', usuarioId)
+      .eq('leido', false);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al marcar todas las notificaciones:', error);
+    return { error };
+  }
+};
+
+export const crearNotificacion = async (notificacion) => {
+  try {
+    const { data, error } = await supabase
+      .from('notificaciones')
+      .insert([notificacion])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al crear notificación:', error);
+    return { data: null, error };
+  }
+};
+
+export const eliminarNotificacion = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('notificaciones')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al eliminar notificación:', error);
+    return { error };
+  }
+};
+
+// ============================================
+// SUSCRIPCIONES EN TIEMPO REAL (NUEVAS)
+// ============================================
+
+export const suscribirseANotificaciones = (usuarioId, callback) => {
+  const subscription = supabase
+    .channel('notificaciones-channel')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notificaciones',
+        filter: `usuario_id=eq.${usuarioId}`
+      },
+      (payload) => {
+        callback(payload.new);
+      }
+    )
+    .subscribe();
+  
+  return subscription;
+};
+
+export const suscribirseACalendario = (callback) => {
+  const subscription = supabase
+    .channel('calendario-channel')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'calendario'
+      },
+      (payload) => {
+        callback(payload);
+      }
+    )
+    .subscribe();
+  
+  return subscription;
+};
+
+export const suscribirseAForos = (callback) => {
+  const subscription = supabase
+    .channel('foros-channel')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'foros'
+      },
+      (payload) => {
+        callback(payload);
+      }
+    )
+    .subscribe();
+  
+  return subscription;
+};
+
+export const suscribirseARespuestasForo = (foroId, callback) => {
+  const subscription = supabase
+    .channel(`foro-respuestas-${foroId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'foros_respuestas',
+        filter: `foro_id=eq.${foroId}`
+      },
+      (payload) => {
+        callback(payload);
+      }
+    )
+    .subscribe();
+  
+  return subscription;
+};
+
