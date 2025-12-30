@@ -25,6 +25,9 @@ import CalendarioView from './CalendarioView';
 import ForosView from './ForosView';
 import NotificacionesComponent from './NotificacionesComponent';
 
+import NoticiasView from './NoticiasView';
+import { Newspaper } from 'lucide-react';
+
 const PlataformaEducativa = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeView, setActiveView] = useState('login');
@@ -707,6 +710,18 @@ const PlataformaEducativa = () => {
           <span className="font-medium">Foros</span>
         </button>
 
+        <button
+          onClick={() => setActiveView('noticias')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+            activeView === 'noticias' 
+              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg' 
+              : 'hover:bg-gray-100 text-gray-700'
+          }`}
+        >
+          <Newspaper size={20} />
+          <span className="font-medium">Noticias</span>
+        </button>
+
         {currentUser.rol === 'admin' && (
           <>
             <button
@@ -1346,6 +1361,7 @@ const PlataformaEducativa = () => {
             {activeView === 'chat' && <ChatView />}
             {activeView === 'calendario' && <CalendarioView currentUser={currentUser} />}
             {activeView === 'foros' && <ForosView currentUser={currentUser} />}
+            {activeView === 'noticias' && <NoticiasView currentUser={currentUser} />}
             {activeView === 'subir' && <SubirView />}
             {activeView === 'usuarios' && <UsuariosView />}
           </div>
@@ -1357,4 +1373,5 @@ const PlataformaEducativa = () => {
 };
 
 export default PlataformaEducativa;
+
 
