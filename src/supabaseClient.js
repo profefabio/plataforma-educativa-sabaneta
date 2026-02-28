@@ -895,5 +895,310 @@ export const suscribirseANoticias = (callback) => {
   
   return subscription;
 };
+// ============================================================
+// AÑADIR AL FINAL DE supabaseClient.js
+// Funciones para el sistema de Retos y Misiones
+// ============================================================
 
+
+// ============================================================
+// RETOS
+// ============================================================
+
+/**
+ * Obtiene retos según el rol del usuario:
+ *  - admin/docente → filtra por docente_id (solo los propios)
+ *  - estudiante    → filtra por su grado asignado
+ */
+export const obtenerRetos = async (usuario) => {
+  try {
+    let query = supabase
+      .from('retos')
+      .select(`
+        *,
+        docente:docente_id(id, nombre, email),
+        misiones(count)
+      `);
+
+    if (usuario.rol === 'docente') {
+      // ← ESTA ES LA CORRECCIÓN PRINCIPAL:
+      // el docente solo ve SUS retos, filtrados por su propio id
+      query = query.eq('docente_id', usuario.id);
+    } else if (usuario.rol === 'admin') {
+      // admin ve todos los retos
+    } else {
+      // estudiante/padre → solo retos del grado asignado y activos
+      query = query
+        .eq('grado', usuario.grado)
+        .eq('activo', true);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener retos:', error);
+    return { data: null, error };
+  }
+};
+
+export const obtenerRetoPorId = async (id) => {
+  try {
+    const { data, error } = await supabase
+      .from('retos')
+      .select(`
+        *,
+        docente:docente_id(id, nombre, email)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener reto:', error);
+    return { data: null, error };
+  }
+};
+
+export const crearReto = async (reto) => {
+  try {
+    const { data, error } = await supabase
+      .from('retos')
+      .insert([reto])
+      .select(`
+        *,
+        docente:docente_id(id, nombre, email)
+      `)
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al crear reto:', error);
+    return { data: null, error };
+  }
+};
+
+export const actualizarReto = async (id, cambios) => {
+  try {
+    const { data, error } = await supabase
+      .from('retos')
+      .update(cambios)
+      .eq('id', id)
+      .select(`
+        *,
+        docente:docente_id(id, nombre, email)
+      `)
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al actualizar reto:', error);
+    return { data: null, error };
+  }
+};
+
+export const eliminarReto = async (id) => {
+  try {
+    // Las misiones se eliminan en cascada por la FK
+    const { error } = await supabase
+      .from('retos')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al eliminar reto:', error);
+    return { error };
+  }
+};
+
+
+// ============================================================
+// MISIONES
+// ============================================================
+
+/**
+ * Obtiene todas las misiones de un reto específico.
+ * Ordenadas por el campo 'orden' para mantener la secuencia.
+ */
+export const obtenerMisiones = async (retoId) => {
+  try {
+    const { data, error } = await supabase
+      .from('misiones')
+      .select('*')
+      .eq('reto_id', retoId)          // ← filtra SOLO las misiones de este reto
+      .order('orden', { ascending: true });
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener misiones:', error);
+    return { data: null, error };
+  }
+};
+
+export const crearMision = async (mision) => {
+  try {
+    // Calcular el siguiente número de orden automáticamente
+    const { count } = await supabase
+      .from('misiones')
+      .select('*', { count: 'exact', head: true })
+      .eq('reto_id', mision.reto_id);
+
+    const misionConOrden = {
+      ...mision,
+      orden: (count || 0) + 1,
+    };
+
+    const { data, error } = await supabase
+      .from('misiones')
+      .insert([misionConOrden])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al crear misión:', error);
+    return { data: null, error };
+  }
+};
+
+export const actualizarMision = async (id, cambios) => {
+  try {
+    const { data, error } = await supabase
+      .from('misiones')
+      .update(cambios)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al actualizar misión:', error);
+    return { data: null, error };
+  }
+};
+
+export const eliminarMision = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('misiones')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error al eliminar misión:', error);
+    return { error };
+  }
+};
+
+
+// ============================================================
+// PROGRESO DE ESTUDIANTES
+// ============================================================
+
+/**
+ * Obtiene el progreso de un estudiante en todas las misiones de un reto.
+ */
+export const obtenerProgresoEstudiante = async (estudianteId, retoId) => {
+  try {
+    const { data, error } = await supabase
+      .from('misiones_progreso')
+      .select(`
+        *,
+        mision:mision_id(id, titulo, puntos_xp, reto_id)
+      `)
+      .eq('estudiante_id', estudianteId)
+      .in(
+        'mision_id',
+        supabase
+          .from('misiones')
+          .select('id')
+          .eq('reto_id', retoId)
+      );
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al obtener progreso:', error);
+    return { data: null, error };
+  }
+};
+
+export const marcarMisionCompletada = async (misionId, estudianteId, puntos) => {
+  try {
+    const { data, error } = await supabase
+      .from('misiones_progreso')
+      .upsert(
+        {
+          mision_id: misionId,
+          estudiante_id: estudianteId,
+          completada: true,
+          fecha_completada: new Date().toISOString(),
+          xp_ganado: puntos,
+        },
+        { onConflict: 'mision_id,estudiante_id' }
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error al marcar misión:', error);
+    return { data: null, error };
+  }
+};
+
+/**
+ * Obtiene el XP total acumulado de un estudiante en toda la plataforma.
+ */
+export const obtenerXPTotal = async (estudianteId) => {
+  try {
+    const { data, error } = await supabase
+      .from('misiones_progreso')
+      .select('xp_ganado')
+      .eq('estudiante_id', estudianteId)
+      .eq('completada', true);
+
+    if (error) throw error;
+    const total = (data || []).reduce((sum, r) => sum + (r.xp_ganado || 0), 0);
+    return { total, error: null };
+  } catch (error) {
+    console.error('Error al obtener XP total:', error);
+    return { total: 0, error };
+  }
+};
+
+
+// ============================================================
+// SUSCRIPCIONES EN TIEMPO REAL
+// ============================================================
+
+export const suscribirseARetos = (callback) => {
+  return supabase
+    .channel('retos-channel')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'retos' }, callback)
+    .subscribe();
+};
+
+export const suscribirseAMisiones = (retoId, callback) => {
+  return supabase
+    .channel(`misiones-reto-${retoId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'misiones', filter: `reto_id=eq.${retoId}` },
+      callback
+    )
+    .subscribe();
+};
 
